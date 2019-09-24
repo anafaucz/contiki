@@ -1,4 +1,6 @@
-all: udp-server-atividade4 udp-client-atividade4
+CONTIKI_PROJECT = udp-client-atividade4_alterada
+all: $(CONTIKI_PROJECT)
+
 
 CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
 CONTIKI = ../..
