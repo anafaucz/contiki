@@ -102,6 +102,8 @@
 #define CC26XX_DEMO_LEDS_PERIODIC       LEDS_YELLOW
 #define CC26XX_DEMO_LEDS_BUTTON         LEDS_RED
 #define CC26XX_DEMO_LEDS_REBOOT         LEDS_ALL
+#define BOARD_IOID_DIO21                IOID_21
+#define BOARD_IOID_DIO24                IOID_24
 /*---------------------------------------------------------------------------*/
 #define CC26XX_DEMO_SENSOR_NONE         (void *)0xFFFFFFFF
 
@@ -125,6 +127,8 @@ PROCESS(gpio_process, "gpio bare metal process");
 
 
 AUTOSTART_PROCESSES(&cc26xx_demo_process, &adc_process_sensor,&gpio_process);
+//AUTOSTART_PROCESSES(&gpio_process);
+//AUTOSTART_PROCESSES(&cc26xx_demo_process);
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
@@ -252,11 +256,13 @@ PROCESS_THREAD(cc26xx_demo_process, ev, data)
 
     PROCESS_BEGIN();
 
+
+
     printf("PWM demo\n");
 
     etimer_set(&et, CC26XX_DEMO_LOOP_INTERVAL);
 
-
+    loadvalue = pwminit(5000);
 
     while(1)
     {
@@ -267,14 +273,19 @@ PROCESS_THREAD(cc26xx_demo_process, ev, data)
         {
             if(data == &button_left_sensor)
             {
-
+                ti_lib_timer_match_set(GPT0_BASE, TIMER_A, loadvalue - ((current_duty * loadvalue) / 100));
+                current_duty+=10;
                 printf("Duty = left button press. Do something!\n");
+                printf("Duty = %d\n", current_duty);
 
 
             }
             else if(data == &button_right_sensor)
             {
+                ti_lib_timer_match_set(GPT0_BASE, TIMER_A, loadvalue - ((current_duty * loadvalue) / 100));
+                current_duty-=10;
                 printf("Duty = right button press. Do something!\n");
+                printf("Duty = %d\n", current_duty);
 
             }
         }
@@ -282,7 +293,9 @@ PROCESS_THREAD(cc26xx_demo_process, ev, data)
     }
     return 0;
 }
+
 /*---------------------------------------------------------------------------*/
+
 
 
 PROCESS_THREAD(gpio_process, ev, data)
@@ -292,18 +305,25 @@ PROCESS_THREAD(gpio_process, ev, data)
 
     etimer_set(&et_gpio, CLOCK_SECOND * 1);
 
-
+    IOCPinTypeGpioOutput(IOID_24);
+    GPIO_clearMultiDio(1<<IOID_24);
 
 
     while(1) {
 
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_gpio));
-        counter++;
+        //counter++;
+        counter =(counter+1)%2;
+        if (counter) {
+            GPIO_setDio(IOID_24);
+        }
+        else{
+            GPIO_clearDio(IOID_24);
+        }
 
-
-    }
-
-    PROCESS_END();
+        etimer_reset(&et_gpio);
+     }
+     PROCESS_END();
 }
 
 
