@@ -40,6 +40,10 @@
 #include "net/ip/resolv.h"
 #include "net/rime/rime.h"
 #include "simple-udp.h"
+#include "lib/sensors.h"
+#include "batmon-sensor.h"
+#include "dev/adc-sensor.h"
+#include "dev/watchdog.h"
 
 #define DEBUG DEBUG_PRINT
 #include "net/ip/uip-debug.h"
@@ -58,7 +62,7 @@
 static struct mqtt_sn_connection mqtt_sn_c;
 static char mqtt_client_id[17];
 static char ctrl_topic[22] = "0000000000000000/ctrl\0";//of form "0011223344556677/ctrl" it is null terminated, and is 21 charactes
-static char pub_topic[21] = "0000000000000000/msg\0";
+static char pub_topic[21] = "0000000000000000/pot\0";
 static uint16_t ctrl_topic_id;
 static uint16_t publisher_topic_id;
 static publish_packet_t incoming_packet;
@@ -72,6 +76,7 @@ static clock_time_t send_interval;
 static mqtt_sn_subscribe_request subreq;
 static mqtt_sn_register_request regreq;
 //uint8_t debug = FALSE;
+
 
 static enum mqttsn_connection_status connection_state = MQTTSN_DISCONNECTED;
 
@@ -183,8 +188,16 @@ PROCESS_THREAD(publish_process, ev, data)
   static uint32_t message_number;
   static char buf[20];
   static mqtt_sn_register_request *rreq = &regreq;
+  static struct sensors_sensor *sensor;
+  static struct etimer et_adc_sensor;
+  static int rv;
+  static int val;
 
   PROCESS_BEGIN();
+
+  sensor = sensors_find(ADC_SENSOR);
+  etimer_set(&et_adc_sensor, CLOCK_SECOND * 4);
+
   send_interval = DEFAULT_SEND_INTERVAL;
   memcpy(pub_topic,device_id,16);
   printf("registering topic\n");
@@ -212,6 +225,19 @@ PROCESS_THREAD(publish_process, ev, data)
     etimer_set(&send_timer, send_interval);
     while(1)
     {
+        //PROCESS_WAIT_EVENT();
+              PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_adc_sensor));
+          //   if(ev==PROCESS_EVENT_TIMER){
+                  SENSORS_ACTIVATE(*sensor);
+                  sensor->configure(ADC_SENSOR_SET_CHANNEL, ADC_COMPB_IN_AUXIO6);
+                  val = sensor->value(ADC_SENSOR_VALUE);
+                  printf("ADC = %d\n", val);
+                  SENSORS_DEACTIVATE(*sensor);
+
+                  etimer_reset(&et_adc_sensor);
+         //     }
+
+
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
       sprintf(buf, "Message %" PRIu32, message_number); //removendo o warning do GCC para o uint32_t
       printf("publishing at topic: %s -> msg: %s\n", pub_topic, buf);

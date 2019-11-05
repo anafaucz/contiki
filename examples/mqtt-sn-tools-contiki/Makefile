@@ -1,5 +1,8 @@
-all: udp-client-rpl-localization example
+#all: udp-client-rpl-localization example
 #all: example
+
+CONTIKI_PROJECT = example
+all: $(CONTIKI_PROJECT)
 
 WITH_UIP6=1
 UIP_CONF_IPV6=1
